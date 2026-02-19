@@ -1,43 +1,49 @@
 cmake_minimum_required(VERSION 3.26)
-set(ProjectName MyEventBus)
+project(MyEventBus VERSION 1.0.0 LANGUAGES CXX)
 
-project(${ProjectName}
-        VERSION 1.0.0
-        LANGUAGES CXX
-        DESCRIPTION "my event bus component")
-
-
-# 全局配置
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)  # 禁用编译器扩展（如GNU的-std=gnu++17）
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-
-# 构建类型配置（Debug/Release）
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Build type" FORCE)
 endif()
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+# 输出路径
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
-# 添加主代码目录
-add_subdirectory(coreLib)
+# 子模块
+add_subdirectory(corelib)
+add_subdirectory(extensions)
 
-
+# 编译选项
 option(ENABLE_EXAMPLES "Enable examples" ON)
-option(ENABLE_TESTING "Enable testing" ON)
-
-
-
 if(ENABLE_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
+# 安装和导出
+install(EXPORT MyEventBusTargets
+    FILE MyEventBusTargets.cmake
+    NAMESPACE MyEventBus::
+    DESTINATION lib/cmake/MyEventBus
+)
 
-## 测试选项
-#option(ENABLE_TESTING "Enable testing" ON)
-#if(ENABLE_TESTING)
-#    add_subdirectory(tests)   # 单元测试
-#endif()
+include(CMakePackageConfigHelpers)
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/MyEventBusConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/MyEventBusConfig.cmake"
+    INSTALL_DESTINATION lib/cmake/MyEventBus
+)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/MyEventBusConfigVersion.cmake"
+    VERSION 1.0.0
+    COMPATIBILITY AnyNewerVersion
+)
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/MyEventBusConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/MyEventBusConfigVersion.cmake"
+    DESTINATION lib/cmake/MyEventBus
+)

@@ -49,7 +49,7 @@ public:
 
     void invoke(const std::vector<std::any>& args) override {
         if (args.size() != sizeof...(Args)) {
-            printf("[EventBus] [ERROR] args quantity mismatch, declared: %i, invoked: %i\n", sizeof...(Args), args.size());
+            printf("[EventBus] [ERROR] args quantity mismatch, declared: %zu, invoked: %zu\n", sizeof...(Args), args.size());
             return;
         }
 
@@ -115,7 +115,7 @@ public:
 
     void invoke(const std::vector<std::any>& args) override{
         if (args.size() != sizeof...(Args)) {
-            printf("[EventBus] [ERROR] memberFunc args quantity mismatch, declared: %i, invoked: %i\n", sizeof...(Args), args.size());
+            printf("[EventBus] [ERROR] memberFunc args quantity mismatch, declared: %zu, invoked: %zu\n", sizeof...(Args), args.size());
             return;
         }
 
@@ -179,7 +179,7 @@ public:
 
     void invoke(const std::vector<std::any>& args) override {
         if (args.size() != sizeof...(Args)) {
-            printf("[EventBus] [ERROR] memberFunc args quantity mismatch, declared: %i, invoked: %i\n", sizeof...(Args), args.size());
+            printf("[EventBus] [ERROR] memberFunc args quantity mismatch, declared: %zu, invoked: %zu\n", sizeof...(Args), args.size());
             return;
         }
 

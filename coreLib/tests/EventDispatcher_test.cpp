@@ -1,4 +1,4 @@
-#include "../include/event_bus/EventDispatcher.hpp"
+#include "MyEventBus/core/EventDispatcher.hpp"
 #include <iostream>
 #include <thread>
 #include <string>

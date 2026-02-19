@@ -1,13 +1,7 @@
-cmake_minimum_required(VERSION 3.26)
+add_subdirectory(src)
 
-# 定义一个接口库，方便其他模块链接
-add_library(MyEventBusCore INTERFACE)
-
-# 指定头文件搜索路径
-target_include_directories(MyEventBusCore INTERFACE 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
+option(ENABLE_TESTING "Enable testing" ON)
 if(ENABLE_TESTING)
+    enable_testing()
     add_subdirectory(tests)
 endif()
