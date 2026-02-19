@@ -1,4 +1,4 @@
-#include "MyEventBus/extensions/AsyncLogger.hpp"
+#include "FunctionRouter/extensions/AsyncLogger.hpp"
 #include <iostream>
 #include <deque>
 #include <mutex>
@@ -6,7 +6,7 @@
 #include <thread>
 #include <atomic>
 
-namespace MyEventBus {
+namespace FunctionRouter {
 namespace Extensions {
 
 struct AsyncLogger::Impl {
@@ -73,4 +73,4 @@ void AsyncLogger::log(const std::string& message) {
 }
 
 } // namespace Extensions
-} // namespace MyEventBus
+} // namespace FunctionRouter

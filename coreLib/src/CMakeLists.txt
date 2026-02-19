@@ -1,16 +1,16 @@
 # Define the interface library
-add_library(MyEventBusCore INTERFACE)
-add_library(MyEventBus::Core ALIAS MyEventBusCore)
+add_library(FunctionRouterCore INTERFACE)
+add_library(FunctionRouter::Core ALIAS FunctionRouterCore)
 
 # Specify include directories
-target_include_directories(MyEventBusCore INTERFACE
+target_include_directories(FunctionRouterCore INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
     $<INSTALL_INTERFACE:include>
 )
 
 # Install the library target
-install(TARGETS MyEventBusCore
-    EXPORT MyEventBusTargets
+install(TARGETS FunctionRouterCore
+    EXPORT FunctionRouterTargets
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
@@ -18,7 +18,7 @@ install(TARGETS MyEventBusCore
 )
 
 # Install header files
-# corelib/include contains MyEventBus directory
+# corelib/include contains FunctionRouter directory
 install(DIRECTORY ../include/
     DESTINATION include
 )

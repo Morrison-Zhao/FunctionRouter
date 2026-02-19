@@ -7,7 +7,7 @@
 #include <condition_variable>
 #include <atomic>
 
-namespace MyEventBus {
+namespace FunctionRouter {
 namespace Extensions {
 
 /**
@@ -45,4 +45,4 @@ private:
 };
 
 } // namespace Extensions
-} // namespace MyEventBus
+} // namespace FunctionRouter

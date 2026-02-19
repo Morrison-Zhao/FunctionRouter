@@ -2,8 +2,8 @@
 // Created by 赵子墨 on 2026/2/18.
 //
 
-#ifndef MYEVENTBUS_THREADPOOL_HPP
-#define MYEVENTBUS_THREADPOOL_HPP
+#ifndef FUNCTIONROUTER_THREADPOOL_HPP
+#define FUNCTIONROUTER_THREADPOOL_HPP
 
 #include <vector>
 #include <deque>
@@ -189,4 +189,4 @@ private:
 
 };
 
-#endif //MYEVENTBUS_THREADPOOL_HPP
+#endif //FUNCTIONROUTER_THREADPOOL_HPP

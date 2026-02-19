@@ -2,12 +2,12 @@
 // Created by 赵子墨 on 2026/2/18.
 //
 
-#ifndef MYEVENTBUS_EVENTDISPATCHER_HPP
-#define MYEVENTBUS_EVENTDISPATCHER_HPP
+#ifndef FUNCTIONROUTER_FUNCTIONROUTER_HPP
+#define FUNCTIONROUTER_FUNCTIONROUTER_HPP
 
 
-#include "EventWrapper.hpp"
-#include "EventLooper.hpp"
+#include "RouteWrapper.hpp"
+#include "RouteLooper.hpp"
 
 
 #include "../container/ThreadSafeMap.hpp"
@@ -23,8 +23,8 @@
  *
  *  使用方法：使用统一的方法注册，后续只需要根据id和参数直接跨组件调用
  */
-class EventDispatcher : public Singleton<EventDispatcher> {
-    friend class Singleton<EventDispatcher>;
+class FunctionRouter : public Singleton<FunctionRouter> {
+    friend class Singleton<FunctionRouter>;
 
 public:
     void execute() {
@@ -35,8 +35,8 @@ public:
         isRunning_ = true;
 
         std::thread dispatcher_thread = std::thread([=]() {
-            eventLooper_->start([=](int64_t eventId) {
-                auto wrapper = std::make_shared<EventWrapper>();
+            routeLooper_->start([=](int64_t eventId) {
+                auto wrapper = std::make_shared<RouteWrapper>();
                 bool find = dispatchEvents_.find(eventId, wrapper);
                 if (find) {
                     auto task = [wrapper] {
@@ -55,7 +55,7 @@ public:
         dispatcher_thread.detach();
 
         mainLooper_->start([=](int64_t eventId) {
-            auto wrapper = std::make_shared<EventWrapper>();
+            auto wrapper = std::make_shared<RouteWrapper>();
             bool find = mainEvents_.find(eventId, wrapper);
 
             if (find) {
@@ -76,8 +76,8 @@ public:
             return;
         }
 
-        if (eventLooper_->isLooping()) {
-            eventLooper_->stop();
+        if (routeLooper_->isLooping()) {
+            routeLooper_->stop();
         }
 
         if (mainLooper_->isLooping()) {
@@ -95,44 +95,43 @@ public:
 
     template<typename Ret>
     void registerEventHelper(int64_t eventId, ThreadMode mode, std::function<Ret()> func, Ret(*)()) {
-        auto handler = std::make_shared<EventHandlerWithoutArgs<std::function<Ret()>>>(std::move(func));
-        registerEventWrapper(eventId, mode, handler);
+        auto handler = std::make_shared<RouteHandlerWithoutArgs<std::function<Ret()>>>(std::move(func));
+        registerRouteWrapper(eventId, mode, handler);
     }
 
 
     template<typename Ret, typename... Args>
     void registerEventHelper(int64_t eventId, ThreadMode mode, std::function<Ret(Args...)> func, Ret(*)(Args...)) {
-        auto handler = std::make_shared<EventHandlerWithArgs<std::function<Ret(Args...)>, Args...>>(std::move(func));
-        registerEventWrapper(eventId, mode, handler);
+        auto handler = std::make_shared<RouteHandlerWithArgs<std::function<Ret(Args...)>, Args...>>(std::move(func));
+        registerRouteWrapper(eventId, mode, handler);
     }
 
 
     template<typename Class, typename Ret>
     void registerEvent(int64_t eventId, ThreadMode mode, Class *instance, Ret(Class::*func)()) {
-        auto handler = std::make_shared<EventHandlerWithoutArgsMember<Class, Ret>>(instance, func);
-        registerEventWrapper(eventId, mode, handler);
-//        registerWrapper(eventId, mode, handler);
+        auto handler = std::make_shared<RouteHandlerWithoutArgsMember<Class, Ret>>(instance, func);
+        registerRouteWrapper(eventId, mode, handler);
     }
 
 
     template<typename Class, typename Ret, typename... Args>
     void registerEvent(int64_t eventId, ThreadMode mode, Class *instance, Ret(Class::*func)(Args...)) {
-        auto handler = std::make_shared<EventHandlerWithArgsMember<Class, Ret, Args...>>(instance, func);
-        registerEventWrapper(eventId, mode, handler);
+        auto handler = std::make_shared<RouteHandlerWithArgsMember<Class, Ret, Args...>>(instance, func);
+        registerRouteWrapper(eventId, mode, handler);
     }
 
 
     template<typename Class, typename Ret>
     void registerEvent(int64_t eventId, ThreadMode mode, Class *instance, Ret(Class::*func)()) const {
-        auto handler = std::make_shared<EventHandlerWithoutArgsMemberConst<Class, Ret>>(instance, func);
-        registerEventWrapper(eventId, mode, handler);
+        auto handler = std::make_shared<RouteHandlerWithoutArgsMemberConst<Class, Ret>>(instance, func);
+        registerRouteWrapper(eventId, mode, handler);
     }
 
 
     template<typename Class, typename Ret, typename... Args>
     void registerEvent(int64_t eventId, ThreadMode mode, Class *instance, Ret(Class::*func)(Args...) const) {
-        auto handler = std::make_shared<EventHandlerWithArgsMemberConst<Class, Ret, Args...>>(instance, func);
-        registerEventWrapper(eventId, mode, handler);
+        auto handler = std::make_shared<RouteHandlerWithArgsMemberConst<Class, Ret, Args...>>(instance, func);
+        registerRouteWrapper(eventId, mode, handler);
     }
 
 
@@ -146,7 +145,7 @@ public:
     template<typename... Args>
     void postEvent(int64_t eventId, Args &&... args) {
         // 避免不必要的参数打包
-        std::shared_ptr<EventWrapper> wrapper;
+        std::shared_ptr<RouteWrapper> wrapper;
         bool eventExists = false;
         eventExists = (dispatchEvents_.find(eventId, wrapper) || mainEvents_.find(eventId, wrapper));
 
@@ -177,17 +176,17 @@ public:
                 };
                 threadPool_->execute(task);
             } else {
-                eventLooper_->push(eventId);
+                routeLooper_->push(eventId);
             }
         }
     }
 
 
 private:
-    EventDispatcher() = default;
+    FunctionRouter() = default;
 
-    void registerEventWrapper(int64_t eventId, ThreadMode mode, const std::shared_ptr<EventHandlerBase> &handler) {
-        auto wrapper = std::make_shared<EventWrapper>();
+    void registerRouteWrapper(int64_t eventId, ThreadMode mode, const std::shared_ptr<RouteHandlerBase> &handler) {
+        auto wrapper = std::make_shared<RouteWrapper>();
         wrapper->mode = mode;
         wrapper->handler = handler;
 
@@ -200,12 +199,12 @@ private:
 
 private:
     std::unique_ptr<ThreadPool> threadPool_ = std::make_unique<ThreadPool>();
-    std::unique_ptr<EventLooper> eventLooper_ = std::make_unique<EventLooper>();
-    std::unique_ptr<EventLooper> mainLooper_ = std::make_unique<EventLooper>();
+    std::unique_ptr<RouteLooper> routeLooper_ = std::make_unique<RouteLooper>();
+    std::unique_ptr<RouteLooper> mainLooper_ = std::make_unique<RouteLooper>();
 
     std::atomic<bool> isRunning_ = false;
-    ThreadSafeMap<int64_t, std::shared_ptr<EventWrapper>> dispatchEvents_ = {};
-    ThreadSafeMap<int64_t, std::shared_ptr<EventWrapper>> mainEvents_ = {};
+    ThreadSafeMap<int64_t, std::shared_ptr<RouteWrapper>> dispatchEvents_ = {};
+    ThreadSafeMap<int64_t, std::shared_ptr<RouteWrapper>> mainEvents_ = {};
 };
 
 
@@ -217,4 +216,4 @@ private:
 
 
 
-#endif //MYEVENTBUS_EVENTDISPATCHER_HPP
+#endif //FUNCTIONROUTER_FUNCTIONROUTER_HPP

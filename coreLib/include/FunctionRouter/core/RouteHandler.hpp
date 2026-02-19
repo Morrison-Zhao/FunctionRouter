@@ -2,17 +2,17 @@
 // Created by 赵子墨 on 2026/2/17.
 //
 
-#ifndef MYEVENTBUS_EVENTHANDLER_HPP
-#define MYEVENTBUS_EVENTHANDLER_HPP
+#ifndef FUNCTIONROUTER_ROUTEHANDLER_HPP
+#define FUNCTIONROUTER_ROUTEHANDLER_HPP
 
 
 #include <any>
 
 
 // 事件处理器，存储函数
-class EventHandlerBase {
+class RouteHandlerBase {
 public:
-    virtual ~EventHandlerBase() = default;
+    virtual ~RouteHandlerBase() = default;
 
     virtual void invoke(const std::vector<std::any>& args) = 0;
 };
@@ -21,9 +21,9 @@ public:
 
 // 普通函数，无参
 template <typename Func>
-class EventHandlerWithoutArgs : public EventHandlerBase {
+class RouteHandlerWithoutArgs : public RouteHandlerBase {
 public:
-    explicit EventHandlerWithoutArgs(Func&& func) : func_(std::forward<Func>(func)) {}
+    explicit RouteHandlerWithoutArgs(Func&& func) : func_(std::forward<Func>(func)) {}
 
     void invoke(const std::vector<std::any>& args) override {
         invokeImpl();
@@ -43,9 +43,9 @@ private:
 
 // 普通函数，有参
 template <typename Func, typename ...Args>
-class EventHandlerWithArgs : public EventHandlerBase {
+class RouteHandlerWithArgs : public RouteHandlerBase {
 public:
-    explicit EventHandlerWithArgs(Func&& func) : func_(std::forward<Func>(func)) {}
+    explicit RouteHandlerWithArgs(Func&& func) : func_(std::forward<Func>(func)) {}
 
     void invoke(const std::vector<std::any>& args) override {
         if (args.size() != sizeof...(Args)) {
@@ -80,11 +80,11 @@ private:
 
 // 成员函数，无参
 template <typename Class, typename Ret>
-class EventHandlerWithoutArgsMember : public EventHandlerBase {
+class RouteHandlerWithoutArgsMember : public RouteHandlerBase {
 public:
     using MemberFunc = Ret(Class::*)();
 
-    explicit EventHandlerWithoutArgsMember(Class* instance, MemberFunc func) : instance_(instance), func_(func) {
+    explicit RouteHandlerWithoutArgsMember(Class* instance, MemberFunc func) : instance_(instance), func_(func) {
     }
 
     void invoke(const std::vector<std::any>& args) override {
@@ -106,11 +106,11 @@ private:
 
 // 成员函数，有参
 template <typename Class, typename Ret, typename... Args>
-class EventHandlerWithArgsMember : public EventHandlerBase {
+class RouteHandlerWithArgsMember : public RouteHandlerBase {
 public:
     using MemberFunc = Ret(Class::*)(Args...);
 
-    explicit EventHandlerWithArgsMember(Class* instance, MemberFunc func) : instance_(instance), func_(func) {
+    explicit RouteHandlerWithArgsMember(Class* instance, MemberFunc func) : instance_(instance), func_(func) {
     }
 
     void invoke(const std::vector<std::any>& args) override{
@@ -144,11 +144,11 @@ private:
 
 // 成员函数，无参const
 template <typename Class, typename Ret>
-class EventHandlerWithoutArgsMemberConst : public EventHandlerBase {
+class RouteHandlerWithoutArgsMemberConst : public RouteHandlerBase {
 public:
     using MemberFunc = Ret(Class::*)() const;
 
-    explicit EventHandlerWithoutArgsMemberConst(const Class* instance, MemberFunc func) : instance_(instance), func_(func) {
+    explicit RouteHandlerWithoutArgsMemberConst(const Class* instance, MemberFunc func) : instance_(instance), func_(func) {
     }
 
     void invoke(const std::vector<std::any>& args) override {
@@ -170,11 +170,11 @@ private:
 
 // 成员函数，有参const
 template <typename Class, typename Ret, typename... Args>
-class EventHandlerWithArgsMemberConst : public EventHandlerBase {
+class RouteHandlerWithArgsMemberConst : public RouteHandlerBase {
 public:
     using MemberFunc = Ret(Class::*)(Args...) const;
 
-    explicit EventHandlerWithArgsMemberConst(const Class* instance, MemberFunc func) : instance_(instance), func_(func) {
+    explicit RouteHandlerWithArgsMemberConst(const Class* instance, MemberFunc func) : instance_(instance), func_(func) {
     }
 
     void invoke(const std::vector<std::any>& args) override {
@@ -205,4 +205,4 @@ private:
 
 
 
-#endif //MYEVENTBUS_EVENTHANDLER_HPP
+#endif //FUNCTIONROUTER_ROUTEHANDLER_HPP

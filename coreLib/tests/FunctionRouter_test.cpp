@@ -1,4 +1,4 @@
-#include "MyEventBus/core/EventDispatcher.hpp"
+#include "FunctionRouter/core/FunctionRouter.hpp"
 #include <iostream>
 #include <thread>
 #include <string>
@@ -66,7 +66,7 @@ enum EventID {
 
 void test_functional() {
     std::cout << "\n========== [Functional Tests] ==========" << std::endl;
-    auto& dispatcher = EventDispatcher::getInstance();
+    auto& dispatcher = FunctionRouter::getInstance();
     TestService service;
 
     // 1. 普通函数
@@ -124,7 +124,7 @@ void test_functional() {
 
 void test_performance() {
     std::cout << "\n========== [Performance Tests] ==========" << std::endl;
-    auto& dispatcher = EventDispatcher::getInstance();
+    auto& dispatcher = FunctionRouter::getInstance();
     const int COUNT = 100000;
 
     // 1. SYNC 模式
@@ -165,11 +165,11 @@ void run_all_tests() {
     
     std::cout << "\n>>> All tests finished. Quitting..." << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(200)); // 让日志飞一会儿
-    EventDispatcher::getInstance().quit();
+    FunctionRouter::getInstance().quit();
 }
 
 int main() {
-    auto& dispatcher = EventDispatcher::getInstance();
+    auto& dispatcher = FunctionRouter::getInstance();
     std::cout << "Main Thread ID: " << std::this_thread::get_id() << std::endl;
 
     // 独立线程运行测试，防止阻塞 Looper

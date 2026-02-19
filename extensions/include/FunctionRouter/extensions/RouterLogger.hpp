@@ -2,15 +2,15 @@
 #include <iostream>
 #include <string>
 
-namespace MyEventBus {
+namespace FunctionRouter {
 namespace Extensions {
 
-class EventLogger {
+class RouterLogger {
 public:
     static void log(const std::string& message) {
-        std::cout << "[EventLogger] " << message << std::endl;
+        std::cout << "[RouterLogger] " << message << std::endl;
     }
 };
 
 } // namespace Extensions
-} // namespace MyEventBus
+} // namespace FunctionRouter

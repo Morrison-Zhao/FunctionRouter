@@ -1,4 +1,4 @@
-#include "MyEventBus/core/EventDispatcher.hpp"
+#include "FunctionRouter/core/FunctionRouter.hpp"
 #include <iostream>
 #include <string>
 #include <thread>
@@ -13,7 +13,7 @@ void say_hello(const std::string& name) {
 }
 
 int main() {
-    auto& dispatcher = EventDispatcher::getInstance();
+    auto& dispatcher = FunctionRouter::getInstance();
     
     std::cout << "Main thread: " << std::this_thread::get_id() << std::endl;
 
@@ -25,7 +25,7 @@ int main() {
 
     // Start the dispatcher (this will block in this simple example, or we can run it in a thread)
     // For this demo, we just used SYNC mode which runs immediately on postEvent if called from a supported context.
-    // But EventDispatcher usually needs execute() to be running for ASYNC/MAIN modes.
+    // But FunctionRouter usually needs execute() to be running for ASYNC/MAIN modes.
     
     // Let's try an ASYNC event
     dispatcher.registerEvent<void(const std::string&)>(2, ThreadMode::ASYNC, [](const std::string& msg){

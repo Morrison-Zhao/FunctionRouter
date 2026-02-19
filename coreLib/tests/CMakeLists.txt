@@ -1,10 +1,10 @@
 add_executable(threadPool_test threadPool_test.cpp)
-target_link_libraries(threadPool_test PRIVATE MyEventBus::Core)
+target_link_libraries(threadPool_test PRIVATE FunctionRouter::Core)
 target_compile_features(threadPool_test PRIVATE cxx_std_17)
 
-add_executable(EventDispatcher_test EventDispatcher_test.cpp)
-target_link_libraries(EventDispatcher_test PRIVATE MyEventBus::Core)
-target_compile_features(EventDispatcher_test PRIVATE cxx_std_17)
+add_executable(FunctionRouter_test FunctionRouter_test.cpp)
+target_link_libraries(FunctionRouter_test PRIVATE FunctionRouter::Core)
+target_compile_features(FunctionRouter_test PRIVATE cxx_std_17)
 
 add_test(NAME threadPool_test COMMAND threadPool_test)
-add_test(NAME EventDispatcher_test COMMAND EventDispatcher_test)
+add_test(NAME FunctionRouter_test COMMAND FunctionRouter_test)

@@ -2,8 +2,8 @@
 // Created by 赵子墨 on 2026/2/18.
 //
 
-#ifndef MYEVENTBUS_EVENTLOOPER_HPP
-#define MYEVENTBUS_EVENTLOOPER_HPP
+#ifndef FUNCTIONROUTER_ROUTELOOPER_HPP
+#define FUNCTIONROUTER_ROUTELOOPER_HPP
 
 
 #include "../container/ThreadSafeQueue.hpp"
@@ -12,11 +12,11 @@
 
 
 
-class EventLooper {
+class RouteLooper {
 public:
-    EventLooper() = default;
+    RouteLooper() = default;
 
-    ~EventLooper() = default;
+    ~RouteLooper() = default;
 
     void push(const int64_t& event_id) {
         queue_.emplace(event_id);
@@ -55,4 +55,4 @@ private:
 
 };
 
-#endif //MYEVENTBUS_EVENTLOOPER_HPP
+#endif //FUNCTIONROUTER_ROUTELOOPER_HPP
