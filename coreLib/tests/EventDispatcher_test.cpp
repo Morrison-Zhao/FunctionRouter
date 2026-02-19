@@ -7,129 +7,179 @@
 #include <chrono>
 #include <vector>
 
-// 定义一些测试用的 Event ID
-const int64_t EVENT_TEST_START = 1;
-const int64_t EVENT_SYNC = 100;
-const int64_t EVENT_MAIN = 200;
-const int64_t EVENT_ASYNC = 300;
-const int64_t EVENT_LOOP = 400;
-const int64_t EVENT_PERF = 500;
-const int64_t EVENT_MEMBER = 600;
+// ==========================================
+// 辅助类和函数
+// ==========================================
 
-class TestComponent {
-public:
-    void onMemberEvent(const std::string& msg) {
-        std::cout << "[TestComponent] Member event received: " << msg << std::endl;
-        received = true;
-    }
-    bool received = false;
+struct ComplexData {
+    int id;
+    std::string payload;
 };
 
-void run_all_tests() {
+void free_function(int val) {
+    // std::cout << "Free function called with " << val << std::endl;
+}
+
+class TestService {
+public:
+    static void static_func(int val) {
+        // std::cout << "Static function called with " << val << std::endl;
+    }
+
+    void member_func(const std::string& msg) {
+        // std::cout << "Member function called with " << msg << std::endl;
+        last_msg = msg;
+    }
+
+    void const_member_func(int val) const {
+        // std::cout << "Const member function called with " << val << std::endl;
+    }
+
+    void ref_member_func(int& val) {
+        val += 1;
+    }
+
+    std::string last_msg;
+};
+
+// ==========================================
+// 测试用例 ID
+// ==========================================
+enum EventID {
+    EVT_FREE_FUNC = 100,
+    EVT_STATIC_FUNC,
+    EVT_MEMBER_FUNC,
+    EVT_MEMBER_FUNC_REF,
+    EVT_CONST_MEMBER_FUNC,
+    EVT_LAMBDA,
+    EVT_COMPLEX_DATA,
+    EVT_UNREGISTER_TEST,
+    
+    EVT_PERF_SYNC = 1000,
+    EVT_PERF_ASYNC,
+    EVT_PERF_MAIN
+};
+
+// ==========================================
+// 测试逻辑
+// ==========================================
+
+void test_functional() {
+    std::cout << "\n========== [Functional Tests] ==========" << std::endl;
     auto& dispatcher = EventDispatcher::getInstance();
-    std::cout << ">>> Starting Tests in thread: " << std::this_thread::get_id() << std::endl;
+    TestService service;
 
-    // 1. 测试 SYNC (当前线程立即执行)
-    {
-        std::cout << "[Test] SYNC Event..." << std::endl;
-        bool sync_executed = false;
-        dispatcher.registerEvent<void()>(EVENT_SYNC, ThreadMode::SYNC, [&]{
-            std::cout << "  -> SYNC event executed in " << std::this_thread::get_id() << std::endl;
-            sync_executed = true;
-        });
-        dispatcher.postEvent(EVENT_SYNC);
-        assert(sync_executed); // 必须立即为真
-        std::cout << "[Pass] SYNC Event" << std::endl;
-    }
+    // 1. 普通函数
+    dispatcher.registerEvent<void(int)>(EVT_FREE_FUNC, ThreadMode::SYNC, free_function);
+    dispatcher.postEvent(EVT_FREE_FUNC, 1);
+    std::cout << "[Pass] Free Function" << std::endl;
 
-    // 2. 测试 MAIN (主线程执行)
-    {
-        std::cout << "[Test] MAIN Event..." << std::endl;
-        // 注意：我们在子线程里 post，期望在主线程执行
-        dispatcher.registerEvent<void(int)>(EVENT_MAIN, ThreadMode::MAIN, [](int val){
-            std::cout << "  -> MAIN event executed in " << std::this_thread::get_id() << " with value " << val << std::endl;
-        });
-        dispatcher.postEvent(EVENT_MAIN, 123);
-        // 结果无法立即断言，只能通过日志观察，因为 MAIN 事件需要等待主线程 Looper 调度
-    }
+    // 2. 静态成员函数
+    dispatcher.registerEvent<void(int)>(EVT_STATIC_FUNC, ThreadMode::SYNC, &TestService::static_func);
+    dispatcher.postEvent(EVT_STATIC_FUNC, 2);
+    std::cout << "[Pass] Static Member Function" << std::endl;
 
-    // 3. 测试 LOOP (独立子线程串行执行)
-    {
-        std::cout << "[Test] LOOP Event..." << std::endl;
-        dispatcher.registerEvent<void()>(EVENT_LOOP, ThreadMode::LOOP, []{
-            std::cout << "  -> LOOP event executed in " << std::this_thread::get_id() << std::endl;
-        });
-        dispatcher.postEvent(EVENT_LOOP);
-    }
+    // 3. 成员函数 (引用传参)
+    dispatcher.registerEvent<TestService, void, const std::string&>(EVT_MEMBER_FUNC, ThreadMode::SYNC, &service, &TestService::member_func);
+    dispatcher.postEvent(EVT_MEMBER_FUNC, std::string("Hello"));
+    assert(service.last_msg == "Hello");
+    std::cout << "[Pass] Member Function (Reference Args)" << std::endl;
 
-    // 4. 测试 Member Function
-    {
-        std::cout << "[Test] Member Function..." << std::endl;
-        static TestComponent comp; // static 保证生命周期
-        dispatcher.registerEvent<TestComponent, void, const std::string&>(EVENT_MEMBER, ThreadMode::SYNC, &comp, &TestComponent::onMemberEvent);
-        dispatcher.postEvent(EVENT_MEMBER, std::string("Hello Member"));
-        assert(comp.received);
-        std::cout << "[Pass] Member Function" << std::endl;
-    }
+//    int test_val = 3;
+//    dispatcher.registerEvent<TestService, void, int&>(EVT_MEMBER_FUNC_REF, ThreadMode::SYNC, &service, &TestService::ref_member_func);
+//    dispatcher.postEvent(EVT_MEMBER_FUNC, test_val);
+//    std::cout << "[Pass] Member Function (Ref 2)" << std::endl;
 
-    // 5. 性能测试 (ASYNC)
+
+    // 4. Const 成员函数
+    dispatcher.registerEvent<TestService, void, int>(EVT_CONST_MEMBER_FUNC, ThreadMode::SYNC, &service, &TestService::const_member_func);
+    dispatcher.postEvent(EVT_CONST_MEMBER_FUNC, 3);
+    std::cout << "[Pass] Const Member Function" << std::endl;
+
+    // 5. Lambda
+    int lambda_val = 0;
+    dispatcher.registerEvent<void(int)>(EVT_LAMBDA, ThreadMode::SYNC, [&](int v){ lambda_val = v; });
+    dispatcher.postEvent(EVT_LAMBDA, 42);
+    assert(lambda_val == 42);
+    std::cout << "[Pass] Lambda" << std::endl;
+
+    // 6. 复杂对象传参
+    dispatcher.registerEvent<void(const ComplexData&)>(EVT_COMPLEX_DATA, ThreadMode::SYNC, [](const ComplexData& d){
+        assert(d.id == 99 && d.payload == "Complex");
+    });
+    dispatcher.postEvent(EVT_COMPLEX_DATA, ComplexData{99, "Complex"});
+    std::cout << "[Pass] Complex Data Struct" << std::endl;
+
+    // 7. 注销测试
+    std::atomic<int> call_count{0};
+    dispatcher.registerEvent<void()>(EVT_UNREGISTER_TEST, ThreadMode::SYNC, [&]{ call_count++; });
+    dispatcher.postEvent(EVT_UNREGISTER_TEST);
+    assert(call_count == 1);
+    
+    dispatcher.unregisterEvent(EVT_UNREGISTER_TEST);
+    dispatcher.postEvent(EVT_UNREGISTER_TEST);
+    assert(call_count == 1); // 应该不再增加
+    std::cout << "[Pass] Unregister Event" << std::endl;
+}
+
+void test_performance() {
+    std::cout << "\n========== [Performance Tests] ==========" << std::endl;
+    auto& dispatcher = EventDispatcher::getInstance();
+    const int COUNT = 100000;
+
+    // 1. SYNC 模式
     {
-        std::cout << "[Test] Performance Benchmark (ASYNC)..." << std::endl;
-        const int TASK_COUNT = 100;
-        int counter{0};
+        std::atomic<int> counter{0};
+        dispatcher.registerEvent<void()>(EVT_PERF_SYNC, ThreadMode::SYNC, [&]{ counter++; });
         
-        dispatcher.registerEvent<void()>(EVENT_PERF, ThreadMode::ASYNC, [&]{
-            counter++;
-            printf("count: %i\n", counter);
-        });
-
         auto start = std::chrono::high_resolution_clock::now();
-        for(int i=0; i<TASK_COUNT; ++i) {
-            dispatcher.postEvent(EVENT_PERF);
-        }
+        for(int i=0; i<COUNT; ++i) dispatcher.postEvent(EVT_PERF_SYNC);
+        auto end = std::chrono::high_resolution_clock::now();
+        
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        std::cout << "SYNC  Mode: " << COUNT << " events in " << ms << " ms (" 
+                  << (double)COUNT/ms*1000 << " ops/sec)" << std::endl;
+    }
+
+    // 2. ASYNC 模式
+    {
+        std::atomic<int> counter{0};
+        dispatcher.registerEvent<void()>(EVT_PERF_ASYNC, ThreadMode::ASYNC, [&]{ counter++; });
+        
+        auto start = std::chrono::high_resolution_clock::now();
+        for(int i=0; i<COUNT; ++i) dispatcher.postEvent(EVT_PERF_ASYNC);
         
         // 等待完成
-        while(counter < TASK_COUNT) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
+        while(counter < COUNT) std::this_thread::sleep_for(std::chrono::milliseconds(1));
         
         auto end = std::chrono::high_resolution_clock::now();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        
-        std::cout << "  -> Processed " << TASK_COUNT << " events in " << ms << " ms" << std::endl;
-        std::cout << "  -> Throughput: " << (double)TASK_COUNT / ms * 1000 << " events/sec" << std::endl;
+        std::cout << "ASYNC Mode: " << COUNT << " events in " << ms << " ms (" 
+                  << (double)COUNT/ms*1000 << " ops/sec)" << std::endl;
     }
+}
 
-    std::cout << "<<< All Tests Completed. Quitting..." << std::endl;
+void run_all_tests() {
+    test_functional();
+    test_performance();
     
-    // 给一点时间让 MAIN 事件打印出来
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    
-    // 退出主循环
-    dispatcher.quit();
+    std::cout << "\n>>> All tests finished. Quitting..." << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(200)); // 让日志飞一会儿
+    EventDispatcher::getInstance().quit();
 }
 
 int main() {
     auto& dispatcher = EventDispatcher::getInstance();
-
     std::cout << "Main Thread ID: " << std::this_thread::get_id() << std::endl;
 
-    // 启动一个独立的测试线程，避免占用线程池资源导致死锁
+    // 独立线程运行测试，防止阻塞 Looper
     std::thread test_thread([&]{
-        // 等待调度器启动
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         run_all_tests();
     });
 
-    // 启动调度器 (这是阻塞的！)
-    std::cout << "Dispatcher starting..." << std::endl;
-    dispatcher.execute();
+    dispatcher.execute(); // 阻塞在此
     
-    if (test_thread.joinable()) {
-        test_thread.join();
-    }
-    
-    std::cout << "Dispatcher stopped." << std::endl;
-
+    if (test_thread.joinable()) test_thread.join();
     return 0;
 }
