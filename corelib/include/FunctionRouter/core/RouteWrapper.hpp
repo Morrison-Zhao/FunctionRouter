@@ -17,6 +17,7 @@ public:
     ThreadMode mode;
     std::shared_ptr<RouteHandlerBase> handler = nullptr;
     ThreadSafeQueue<std::vector<std::any>> params = {};
+    bool persistent = true;
 };
 
 #endif //FUNCTIONROUTER_ROUTEWRAPPER_HPP

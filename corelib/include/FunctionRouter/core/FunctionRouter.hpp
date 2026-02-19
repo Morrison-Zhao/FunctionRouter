@@ -25,7 +25,6 @@
  */
 class FunctionRouter : public Singleton<FunctionRouter> {
     friend class Singleton<FunctionRouter>;
-
 public:
     void execute() {
         if (isRunning_) {
@@ -34,42 +33,55 @@ public:
         threadPool_->start();
         isRunning_ = true;
 
-        std::thread dispatcher_thread = std::thread([=]() {
+        std::thread route_thread = std::thread([=]() {
             routeLooper_->start([=](int64_t eventId) {
                 auto wrapper = std::make_shared<RouteWrapper>();
-                bool find = dispatchEvents_.find(eventId, wrapper);
+                bool find = routeEvents_.find(eventId, wrapper);
                 if (find) {
                     auto task = [wrapper] {
-                        wrapper->handler->invoke(wrapper->params.pop());
+                        if (wrapper->persistent) {
+                            wrapper->handler->invoke(wrapper->params.pop());
+                        } else {
+                            wrapper->handler->invoke({});
+                        }
                     };
-
                     if (wrapper->mode == ThreadMode::LOOP) {
                         task();
+
+                        // 非持久化移除
+                        if (!wrapper->persistent) {
+                            routeEvents_.erase(eventId);
+                        }
                     }
-//                    else if (wrapper->mode == ThreadMode::ASYNC) {
-//                        threadPool_->execute(task);
-//                    }
                 }
             });
         });
-        dispatcher_thread.detach();
+        route_thread.detach();
 
         mainLooper_->start([=](int64_t eventId) {
             auto wrapper = std::make_shared<RouteWrapper>();
             bool find = mainEvents_.find(eventId, wrapper);
-
             if (find) {
                 auto task = [wrapper] {
-                    wrapper->handler->invoke(wrapper->params.pop());
+                    if (wrapper->persistent) {
+                        wrapper->handler->invoke(wrapper->params.pop());
+                    } else {
+                        wrapper->handler->invoke({});
+                    }
                 };
-
                 if (wrapper->mode == ThreadMode::MAIN) {
                     task();
+
+                    // 非持久化移除
+                    if (!wrapper->persistent) {
+                        mainEvents_.erase(eventId);
+                    }
                 }
             }
         });
         printf("execute quit.\n");
     }
+
 
     void quit() {
         if (!isRunning_) {
@@ -85,70 +97,83 @@ public:
         }
     }
 
-
 public:
+    // 普通函数无参
     template<typename Signature>
-    void registerEvent(int64_t eventId, ThreadMode mode, std::function<Signature> func) {
-        registerEventHelper(eventId, mode, func, (Signature *) nullptr);
+    void registerEvent(int64_t eventId, ThreadMode mode,
+                       std::function<Signature> func, bool persistent = true) {
+        registerEventHelper(eventId, mode, func, (Signature *) nullptr, persistent);
     }
 
 
     template<typename Ret>
-    void registerEventHelper(int64_t eventId, ThreadMode mode, std::function<Ret()> func, Ret(*)()) {
+    void registerEventHelper(int64_t eventId, ThreadMode mode,
+                             std::function<Ret()> func, Ret(*)(), bool persistent = true) {
         auto handler = std::make_shared<RouteHandlerWithoutArgs<std::function<Ret()>>>(std::move(func));
-        registerRouteWrapper(eventId, mode, handler);
+        registerEventWrapper(eventId, mode, handler, persistent);
     }
 
 
+    // 普通函数有参
     template<typename Ret, typename... Args>
-    void registerEventHelper(int64_t eventId, ThreadMode mode, std::function<Ret(Args...)> func, Ret(*)(Args...)) {
+    void registerEventHelper(int64_t eventId, ThreadMode mode,
+                             std::function<Ret(Args...)> func, Ret(*)(Args...), bool persistent = true) {
         auto handler = std::make_shared<RouteHandlerWithArgs<std::function<Ret(Args...)>, Args...>>(std::move(func));
-        registerRouteWrapper(eventId, mode, handler);
+        registerEventWrapper(eventId, mode, handler, persistent);
     }
 
 
+    // 成员函数无参
     template<typename Class, typename Ret>
-    void registerEvent(int64_t eventId, ThreadMode mode, Class *instance, Ret(Class::*func)()) {
+    void registerEvent(int64_t eventId, ThreadMode mode,
+                       Class *instance, Ret(Class::*func)(), bool persistent = true) {
         auto handler = std::make_shared<RouteHandlerWithoutArgsMember<Class, Ret>>(instance, func);
-        registerRouteWrapper(eventId, mode, handler);
+        registerEventWrapper(eventId, mode, handler, persistent);
     }
 
 
+    // 成员函数有参
     template<typename Class, typename Ret, typename... Args>
-    void registerEvent(int64_t eventId, ThreadMode mode, Class *instance, Ret(Class::*func)(Args...)) {
+    void registerEvent(int64_t eventId, ThreadMode mode,
+                       Class *instance, Ret(Class::*func)(Args...), bool persistent = true) {
         auto handler = std::make_shared<RouteHandlerWithArgsMember<Class, Ret, Args...>>(instance, func);
-        registerRouteWrapper(eventId, mode, handler);
+        registerEventWrapper(eventId, mode, handler, persistent);
     }
 
 
+    // 成员函数无参const
     template<typename Class, typename Ret>
-    void registerEvent(int64_t eventId, ThreadMode mode, Class *instance, Ret(Class::*func)()) const {
+    void registerEvent(int64_t eventId, ThreadMode mode,
+                       Class *instance, Ret(Class::*func)() const, bool persistent = true) {
         auto handler = std::make_shared<RouteHandlerWithoutArgsMemberConst<Class, Ret>>(instance, func);
-        registerRouteWrapper(eventId, mode, handler);
+        registerEventWrapper(eventId, mode, handler, persistent);
     }
 
 
+    // 成员函数有参const
     template<typename Class, typename Ret, typename... Args>
-    void registerEvent(int64_t eventId, ThreadMode mode, Class *instance, Ret(Class::*func)(Args...) const) {
+    void registerEvent(int64_t eventId, ThreadMode mode,
+                       Class *instance, Ret(Class::*func)(Args...) const, bool persistent = true) {
         auto handler = std::make_shared<RouteHandlerWithArgsMemberConst<Class, Ret, Args...>>(instance, func);
-        registerRouteWrapper(eventId, mode, handler);
+        registerEventWrapper(eventId, mode, handler, persistent);
     }
 
 
+    // 注销任务
     int unregisterEvent(int64_t eventId) {
-        bool result = dispatchEvents_.erase(eventId) > 0;
+        bool result = routeEvents_.erase(eventId) > 0;
         result = mainEvents_.erase(eventId) > 0 || result;
         return result;
     }
 
 
+    // 调用-id
     template<typename... Args>
     void postEvent(int64_t eventId, Args &&... args) {
-        // 避免不必要的参数打包
         std::shared_ptr<RouteWrapper> wrapper;
-        bool eventExists = false;
-        eventExists = (dispatchEvents_.find(eventId, wrapper) || mainEvents_.find(eventId, wrapper));
 
+        bool eventExists = false;
+        eventExists = (routeEvents_.find(eventId, wrapper) || mainEvents_.find(eventId, wrapper));
         if (!eventExists) {
             return;
         }
@@ -159,22 +184,27 @@ public:
         (anyArgs.push_back(std::make_any<typename std::remove_cv<typename std::remove_reference<Args>::type>::type>
                                    (std::forward<Args>(args))), ...);
 
-        bool find = dispatchEvents_.find(eventId, wrapper);
+        bool find = routeEvents_.find(eventId, wrapper);
         find = (find || mainEvents_.find(eventId, wrapper));
         if (find) {
             auto mode = wrapper->mode;
             wrapper->params.push(anyArgs);
-            // 当前线程调用
             if (mode == ThreadMode::SYNC) {
                 auto task = [wrapper]() { wrapper->handler->invoke(wrapper->params.pop()); };
                 task();
+
+                if (!wrapper->persistent) {
+                    routeEvents_.erase(eventId);
+                }
+            } else if (mode == ThreadMode::ASYNC) {
+                auto task = [wrapper]() { wrapper->handler->invoke(wrapper->params.pop()); };
+                threadPool_->execute(task);
+
+                if (!wrapper->persistent) {
+                    routeEvents_.erase(eventId);
+                }
             } else if (mode == ThreadMode::MAIN) {
                 mainLooper_->push(eventId);
-            } else if (mode == ThreadMode::ASYNC) {
-                auto task = [wrapper] {
-                    wrapper->handler->invoke(wrapper->params.pop());
-                };
-                threadPool_->execute(task);
             } else {
                 routeLooper_->push(eventId);
             }
@@ -182,18 +212,47 @@ public:
     }
 
 
+    // 调用-直接无参/有参（通过lambda捕获）
+    // 示例: postEvent([=]{ func(a, b); }, ThreadMode::MAIN);
+    void postEvent(std::function<void()> func, ThreadMode mode = ThreadMode::ASYNC) {
+        if (mode == ThreadMode::SYNC) {
+            func();
+        } else if (mode == ThreadMode::ASYNC) {
+            threadPool_->execute(func);
+        } else {
+            auto wrapper = std::make_shared<RouteWrapper>();
+            wrapper->mode = mode;
+            wrapper->handler = std::make_shared<RouteHandlerWithoutArgs<std::function<void()>>>(std::move(func));
+            wrapper->persistent = false;
+
+            // 生成临时ID (负数，避免与用户ID冲突)
+            int64_t tempId = tempIdCounter_--; 
+            
+            if (mode == ThreadMode::LOOP) {
+                routeEvents_.insert(tempId, wrapper);
+                routeLooper_->push(tempId);
+            } else if (mode == ThreadMode::MAIN) {
+                mainEvents_.insert(tempId, wrapper);
+                mainLooper_->push(tempId);
+            }
+        }
+    }
+
 private:
     FunctionRouter() = default;
 
-    void registerRouteWrapper(int64_t eventId, ThreadMode mode, const std::shared_ptr<RouteHandlerBase> &handler) {
+
+    void registerEventWrapper(int64_t eventId, ThreadMode mode,
+                              const std::shared_ptr<RouteHandlerBase> &handler, bool persistent = true) {
         auto wrapper = std::make_shared<RouteWrapper>();
         wrapper->mode = mode;
         wrapper->handler = handler;
+        wrapper->persistent = persistent;
 
         if (mode == ThreadMode::MAIN) {
             mainEvents_.insert(eventId, wrapper);
         } else {
-            dispatchEvents_.insert(eventId, wrapper);
+            routeEvents_.insert(eventId, wrapper);
         }
     }
 
@@ -203,17 +262,11 @@ private:
     std::unique_ptr<RouteLooper> mainLooper_ = std::make_unique<RouteLooper>();
 
     std::atomic<bool> isRunning_ = false;
-    ThreadSafeMap<int64_t, std::shared_ptr<RouteWrapper>> dispatchEvents_ = {};
+    ThreadSafeMap<int64_t, std::shared_ptr<RouteWrapper>> routeEvents_ = {};
     ThreadSafeMap<int64_t, std::shared_ptr<RouteWrapper>> mainEvents_ = {};
+    std::atomic<int64_t> tempIdCounter_ = -1;
+
 };
-
-
-
-
-
-
-
-
 
 
 #endif //FUNCTIONROUTER_FUNCTIONROUTER_HPP
