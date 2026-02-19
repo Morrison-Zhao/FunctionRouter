@@ -45,9 +45,10 @@ public:
 
                     if (wrapper->mode == ThreadMode::LOOP) {
                         task();
-                    } else if (wrapper->mode == ThreadMode::ASYNC) {
-                        threadPool_->execute(task);
                     }
+//                    else if (wrapper->mode == ThreadMode::ASYNC) {
+//                        threadPool_->execute(task);
+//                    }
                 }
             });
         });
@@ -170,6 +171,11 @@ public:
                 task();
             } else if (mode == ThreadMode::MAIN) {
                 mainLooper_->push(eventId);
+            } else if (mode == ThreadMode::ASYNC) {
+                auto task = [wrapper] {
+                    wrapper->handler->invoke(wrapper->params.pop());
+                };
+                threadPool_->execute(task);
             } else {
                 eventLooper_->push(eventId);
             }
