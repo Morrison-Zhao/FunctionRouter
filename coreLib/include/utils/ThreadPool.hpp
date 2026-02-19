@@ -5,8 +5,6 @@
 #ifndef MYEVENTBUS_THREADPOOL_HPP
 #define MYEVENTBUS_THREADPOOL_HPP
 
-
-
 #include <vector>
 #include <deque>
 #include <mutex>
@@ -17,8 +15,6 @@
 #include <future>
 #include <memory>
 #include <chrono>
-
-
 
 class ThreadPool {
 public:
@@ -75,8 +71,8 @@ public:
     template <typename F, typename... Args>
     void execute(F&& f, Args&&... args) {
         // 包装任务
-        auto task = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
-        submit(std::make_shared<std::function<void()>>(task));
+        // 使用 std::function 直接存储，避免 shared_ptr 开销
+        submit(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
     }
 
     size_t size() const {
@@ -98,13 +94,13 @@ public:
     }
 
 private:
-    void submit(std::shared_ptr<std::function<void()>> task) {
+    void submit(std::function<void()> task) {
         if (!isRunning_) {
             return;
         }
 
         // Round-Robin 分发策略：均匀分配任务到各个 Worker
-        size_t idx = (submit_idx_++) % workers_.size();
+        size_t idx = (submitIdx_++) % workers_.size();
         auto& worker = workers_[idx];
 
         {
@@ -114,29 +110,30 @@ private:
         worker->cond.notify_one();
     }
 
-    struct Worker {
+private:
+    struct alignas(64) Worker { // 避免 False Sharing
         size_t id;
         ThreadPool* pool;
         std::thread thread;
-        std::deque<std::shared_ptr<std::function<void()>>> tasks;
+        std::deque<std::function<void()>> tasks;
         mutable std::mutex mtx;
         std::condition_variable cond;
         bool running = true;
 
-   Worker(size_t id, ThreadPool* pool) : id(id), pool(pool) {}
+        Worker(size_t id, ThreadPool* pool) : id(id), pool(pool) {}
 
         // Worker 主循环
         void run() {
             printf("Worker %zu started\n", id);
             while (running) {
-                std::shared_ptr<std::function<void()>> task;
+                std::function<void()> task;
 
                 // 1. 尝试从自己的队列取任务
                 {
                     std::unique_lock<std::mutex> lock(mtx);
                     
                     // 等待条件：有任务 或者 停止运行 (超时唤醒以尝试窃取任务)
-                    cond.wait_for(lock, std::chrono::milliseconds(10), [this] {
+                    cond.wait_for(lock, std::chrono::milliseconds(500), [this] {
                         return !tasks.empty() || !running;
                     });
 
@@ -158,13 +155,13 @@ private:
                 // 3. 执行任务
                 if (task) {
                     pool->activeThreads_++;
-                    (*task)();
+                    task();
                     pool->activeThreads_--;
                 }
             }
         }
 
-        std::shared_ptr<std::function<void()>> steal_task() const {
+        std::function<void()> steal_task() const {
             for (size_t i = 0; i < pool->workers_.size(); ++i) {
                 if (i == id) {
                     continue; // 不偷自己
@@ -187,7 +184,7 @@ private:
 private:
     std::vector<std::unique_ptr<Worker>> workers_;
     std::atomic<bool> isRunning_ = false;
-    std::atomic<size_t> submit_idx_ = 0; // 用于 Round-Robin 分发
+    std::atomic<size_t> submitIdx_ = 0; // 用于 Round-Robin 分发
     std::atomic<size_t> activeThreads_ = 0;
 
 };

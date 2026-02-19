@@ -112,34 +112,42 @@ void test_performance() {
     // 3. 重型任务测试
     {
         std::cout << "\n--- Heavy Tasks (Parallel Speedup Test) ---" << std::endl;
-        const int HEAVY_TASK_COUNT = 10000;
+        const int HEAVY_TASK_COUNT = 1000; // Fewer tasks
         
         auto heavy_calc = [](int n) {
             double result = 0;
-            for(int i=0; i<5000; ++i) result += std::sqrt(n + i);
+            for(int i=0; i<200000; ++i) result += std::sqrt(n + i); // More work per task
             return result;
         };
 
         // A. 串行基准
+        volatile double serial_total = 0;
         auto start_serial = std::chrono::high_resolution_clock::now();
         for(int i=0; i<HEAVY_TASK_COUNT; ++i) {
-            heavy_calc(i);
+            serial_total = serial_total + heavy_calc(i);
         }
         auto end_serial = std::chrono::high_resolution_clock::now();
         auto serial_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_serial - start_serial).count();
-        std::cout << "Serial Time: " << serial_ms << " ms" << std::endl;
+        std::cout << "Serial Time: " << serial_ms << " ms (Check: " << serial_total << ")" << std::endl;
 
         // B. 并行测试
         ThreadPool pool;
         pool.start(THREAD_NUM);
-//        std::vector<std::future<double>> futures;
-//        futures.reserve(HEAVY_TASK_COUNT);
+        std::atomic<int> completed{0};
         
         auto start_pool = std::chrono::high_resolution_clock::now();
         for(int i=0; i<HEAVY_TASK_COUNT; ++i) {
-            pool.execute(heavy_calc, i);
+            pool.execute([&completed, i, heavy_calc] {
+                volatile double val = heavy_calc(i);
+                (void)val;
+                completed.fetch_add(1, std::memory_order_relaxed);
+            });
         }
-//        for(auto& f : futures) f.get();
+        
+        while(completed < HEAVY_TASK_COUNT) {
+            std::this_thread::yield();
+        }
+        
         auto end_pool = std::chrono::high_resolution_clock::now();
         
         auto pool_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_pool - start_pool).count();
