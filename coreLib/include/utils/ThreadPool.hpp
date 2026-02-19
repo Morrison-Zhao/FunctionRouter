@@ -171,10 +171,7 @@ private:
                 }
 
                 auto& victim = pool->workers_[i];
-                if (victim->tasks.empty()) {
-                    continue; // 快速检查 (非线程安全但高效)
-                }
-
+                // 尝试加锁窃取
                 std::unique_lock<std::mutex> lock(victim->mtx, std::try_to_lock);
                 if (lock.owns_lock() && !victim->tasks.empty()) {
                     // 偷走队尾的任务 (从后面偷，减少与 victim 线程从前面取任务的冲突)

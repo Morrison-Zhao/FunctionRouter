@@ -81,7 +81,6 @@ public:
 
         if (mainLooper_->isLooping()) {
             mainLooper_->stop();
-            mainLooper_ = nullptr;
         }
     }
 
