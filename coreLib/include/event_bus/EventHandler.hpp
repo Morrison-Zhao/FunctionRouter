@@ -60,11 +60,12 @@ private:
     template <size_t... I>
     void invokeImpl(const std::vector<std::any>& args, std::index_sequence<I...>) {
         try {
-            func_(std::any_cast<
-                    typename std::remove_cv<
-                            typename std::remove_reference<Args...>::type
-                            >::type
-                    >(args[I]...));
+//            func_(std::any_cast<
+//                    typename std::remove_cv<
+//                            typename std::remove_reference<Args...>::type
+//                            >::type
+//                    >(args[I]...));
+            func_(std::any_cast<Args...>(args[I]...));
         } catch (const std::bad_any_cast &e) {
             printf("[EventBus] [ERROR] %s, check event params is match ?\n", e.what());
         }
@@ -124,11 +125,13 @@ public:
 private:
     template <size_t... I>
     void invokeImpl(const std::vector<std::any>& args, std::index_sequence<I...>) {
-        (instance_->*func_)(std::any_cast<
-                                typename std::remove_cv<
-                                        typename std::remove_reference<Args...>::type
-                                        >::type
-                                >(args[I]...));
+//        (instance_->*func_)(std::any_cast<
+//                                typename std::remove_cv<
+//                                        typename std::remove_reference<Args...>::type
+//                                        >::type
+//                                >(args[I]...));
+
+        (instance_->*func_)(std::any_cast<Args...>(args[I]...));
     }
 
 private:
@@ -186,11 +189,12 @@ public:
 private:
     template <size_t... I>
     void invokeImpl(const std::vector<std::any>& args, std::index_sequence<I...>) {
-        (instance_->*func_)(std::any_cast<
-                typename std::remove_cv<
-                        typename std::remove_reference<Args...>::type
-                >::type
-        >(args[I]...));
+//        (instance_->*func_)(std::any_cast<
+//                typename std::remove_cv<
+//                        typename std::remove_reference<Args...>::type
+//                >::type
+//        >(args[I]...));
+        (instance_->*func_)(std::any_cast<Args...>(args[I]...));
     }
 
 private:
