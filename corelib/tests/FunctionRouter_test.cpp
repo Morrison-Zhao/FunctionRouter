@@ -54,6 +54,8 @@ enum EventID {
     EVT_LAMBDA,
     EVT_COMPLEX_DATA,
     EVT_UNREGISTER_TEST,
+    EVT_PERSISTENT_TEST,
+    EVT_DIRECT_TEST,
     
     EVT_PERF_SYNC = 1000,
     EVT_PERF_ASYNC,
@@ -122,6 +124,58 @@ void test_functional() {
     std::cout << "[Pass] Unregister Event" << std::endl;
 }
 
+void test_direct_post() {
+    std::cout << "\n========== [Direct Post Tests] ==========" << std::endl;
+    auto& dispatcher = FunctionRouter::getInstance();
+
+    // 1. SYNC
+    bool sync_called = false;
+    dispatcher.postEvent([&]{ sync_called = true; }, ThreadMode::SYNC);
+    assert(sync_called);
+    std::cout << "[Pass] Direct Post SYNC" << std::endl;
+
+    // 2. ASYNC
+    std::atomic<bool> async_called{false};
+    dispatcher.postEvent([&]{ async_called = true; }, ThreadMode::ASYNC);
+    while(!async_called) std::this_thread::yield();
+    std::cout << "[Pass] Direct Post ASYNC" << std::endl;
+
+    // 3. LOOP (子线程)
+    std::atomic<bool> loop_called{false};
+    std::thread::id loop_thread_id;
+    dispatcher.postEvent([&]{ 
+        loop_called = true; 
+        loop_thread_id = std::this_thread::get_id();
+        // std::cout << "[Debug] LOOP task executed" << std::endl;
+    }, ThreadMode::LOOP);
+    
+    int timeout = 0;
+    while(!loop_called && timeout++ < 1000) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    if (!loop_called) std::cout << "[Fail] Direct Post LOOP Timeout" << std::endl;
+    else {
+        assert(loop_thread_id != std::this_thread::get_id());
+        std::cout << "[Pass] Direct Post LOOP" << std::endl;
+    }
+
+    // 4. MAIN (主线程)
+    // 注意：主线程正在运行 dispatcher.execute()，它会处理 mainLooper_
+    std::atomic<bool> main_called{false};
+    dispatcher.postEvent([&]{ main_called = true; }, ThreadMode::MAIN);
+    
+    timeout = 0;
+    while(!main_called && timeout++ < 1000) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    if (!main_called) std::cout << "[Fail] Direct Post MAIN Timeout" << std::endl;
+    else std::cout << "[Pass] Direct Post MAIN" << std::endl;
+    
+    // 5. 带参数 (通过 lambda 捕获)
+    int val = 123;
+    std::atomic<int> result{0};
+    dispatcher.postEvent([=, &result]{ result = val * 2; }, ThreadMode::ASYNC);
+    while(result == 0) std::this_thread::yield();
+    assert(result == 246);
+    std::cout << "[Pass] Direct Post with Capture Args" << std::endl;
+}
+
 void test_performance() {
     std::cout << "\n========== [Performance Tests] ==========" << std::endl;
     auto& dispatcher = FunctionRouter::getInstance();
@@ -161,6 +215,7 @@ void test_performance() {
 
 void run_all_tests() {
     test_functional();
+    test_direct_post();
     test_performance();
     
     std::cout << "\n>>> All tests finished. Quitting..." << std::endl;
