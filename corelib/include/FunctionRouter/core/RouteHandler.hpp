@@ -7,6 +7,7 @@
 
 
 #include <any>
+#include <tuple>
 
 
 // 事件处理器，存储函数
@@ -14,7 +15,7 @@ class RouteHandlerBase {
 public:
     virtual ~RouteHandlerBase() = default;
 
-    virtual void invoke(const std::vector<std::any>& args) = 0;
+    virtual void invoke(std::vector<std::any> args) = 0;
 };
 
 
@@ -25,7 +26,7 @@ class RouteHandlerWithoutArgs : public RouteHandlerBase {
 public:
     explicit RouteHandlerWithoutArgs(Func&& func) : func_(std::forward<Func>(func)) {}
 
-    void invoke(const std::vector<std::any>& args) override {
+    void invoke(std::vector<std::any> args) override {
         invokeImpl();
     }
 
@@ -47,7 +48,7 @@ class RouteHandlerWithArgs : public RouteHandlerBase {
 public:
     explicit RouteHandlerWithArgs(Func&& func) : func_(std::forward<Func>(func)) {}
 
-    void invoke(const std::vector<std::any>& args) override {
+    void invoke(std::vector<std::any> args) override {
         if (args.size() != sizeof...(Args)) {
             printf("[FunctionRouter] [ERROR] args quantity mismatch, declared: %zu, invoked: %zu\n", sizeof...(Args), args.size());
             return;
@@ -57,15 +58,12 @@ public:
     }
 
 private:
+    using ArgsTuple = std::tuple<Args...>;
+
     template <size_t... I>
-    void invokeImpl(const std::vector<std::any>& args, std::index_sequence<I...>) {
+    void invokeImpl(std::vector<std::any>& args, std::index_sequence<I...>) {
         try {
-//            func_(std::any_cast<
-//                    typename std::remove_cv<
-//                            typename std::remove_reference<Args...>::type
-//                            >::type
-//                    >(args[I]...));
-            func_(std::any_cast<Args...>(args[I]...));
+            func_(std::any_cast<typename std::tuple_element<I, ArgsTuple>::type>(args[I])...);
         } catch (const std::bad_any_cast &e) {
             printf("[FunctionRouter] [ERROR] %s, check event params is match ?\n", e.what());
         }
@@ -87,7 +85,7 @@ public:
     explicit RouteHandlerWithoutArgsMember(Class* instance, MemberFunc func) : instance_(instance), func_(func) {
     }
 
-    void invoke(const std::vector<std::any>& args) override {
+    void invoke(std::vector<std::any> args) override {
         invokeImpl();
     }
 
@@ -113,7 +111,7 @@ public:
     explicit RouteHandlerWithArgsMember(Class* instance, MemberFunc func) : instance_(instance), func_(func) {
     }
 
-    void invoke(const std::vector<std::any>& args) override{
+    void invoke(std::vector<std::any> args) override{
         if (args.size() != sizeof...(Args)) {
             printf("[FunctionRouter] [ERROR] memberFunc args quantity mismatch, declared: %zu, invoked: %zu\n", sizeof...(Args), args.size());
             return;
@@ -123,15 +121,15 @@ public:
     }
 
 private:
-    template <size_t... I>
-    void invokeImpl(const std::vector<std::any>& args, std::index_sequence<I...>) {
-//        (instance_->*func_)(std::any_cast<
-//                                typename std::remove_cv<
-//                                        typename std::remove_reference<Args...>::type
-//                                        >::type
-//                                >(args[I]...));
+    using ArgsTuple = std::tuple<Args...>;
 
-        (instance_->*func_)(std::any_cast<Args...>(args[I]...));
+    template <size_t... I>
+    void invokeImpl(std::vector<std::any>& args, std::index_sequence<I...>) {
+        try {
+            (instance_->*func_)(std::any_cast<typename std::tuple_element<I, ArgsTuple>::type>(args[I])...);
+        } catch (const std::bad_any_cast &e) {
+            printf("[FunctionRouter] [ERROR] %s, check event params is match ?\n", e.what());
+        }
     }
 
 private:
@@ -151,7 +149,7 @@ public:
     explicit RouteHandlerWithoutArgsMemberConst(const Class* instance, MemberFunc func) : instance_(instance), func_(func) {
     }
 
-    void invoke(const std::vector<std::any>& args) override {
+    void invoke(std::vector<std::any> args) override {
         invokeImpl();
     }
 
@@ -177,7 +175,7 @@ public:
     explicit RouteHandlerWithArgsMemberConst(const Class* instance, MemberFunc func) : instance_(instance), func_(func) {
     }
 
-    void invoke(const std::vector<std::any>& args) override {
+    void invoke(std::vector<std::any> args) override {
         if (args.size() != sizeof...(Args)) {
             printf("[FunctionRouter] [ERROR] memberFunc args quantity mismatch, declared: %zu, invoked: %zu\n", sizeof...(Args), args.size());
             return;
@@ -187,14 +185,15 @@ public:
     }
 
 private:
+    using ArgsTuple = std::tuple<Args...>;
+
     template <size_t... I>
-    void invokeImpl(const std::vector<std::any>& args, std::index_sequence<I...>) {
-//        (instance_->*func_)(std::any_cast<
-//                typename std::remove_cv<
-//                        typename std::remove_reference<Args...>::type
-//                >::type
-//        >(args[I]...));
-        (instance_->*func_)(std::any_cast<Args...>(args[I]...));
+    void invokeImpl(std::vector<std::any>& args, std::index_sequence<I...>) {
+        try {
+            (instance_->*func_)(std::any_cast<typename std::tuple_element<I, ArgsTuple>::type>(args[I])...);
+        } catch (const std::bad_any_cast &e) {
+            printf("[FunctionRouter] [ERROR] %s, check event params is match ?\n", e.what());
+        }
     }
 
 private:

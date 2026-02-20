@@ -124,7 +124,7 @@ private:
 
         // Worker 主循环
         void run() {
-            printf("Worker %zu started\n", id);
+//            printf("Worker %zu started\n", id);
             while (running) {
                 std::function<void()> task;
 

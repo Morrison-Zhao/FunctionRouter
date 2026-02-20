@@ -94,7 +94,7 @@ public:
     }
 
 
-    template<typename Ret>
+    template<typename Ret = void>
     void registerEventHelper(int64_t eventId, ThreadMode mode,
                              std::function<Ret()> func, Ret(*)(), bool persistent = true) {
         auto handler = std::make_shared<RouteHandlerWithoutArgs<std::function<Ret()>>>(std::move(func));
@@ -103,7 +103,7 @@ public:
 
 
     // 普通函数有参
-    template<typename Ret, typename... Args>
+    template<typename Ret = void, typename... Args>
     void registerEventHelper(int64_t eventId, ThreadMode mode,
                              std::function<Ret(Args...)> func, Ret(*)(Args...), bool persistent = true) {
         auto handler = std::make_shared<RouteHandlerWithArgs<std::function<Ret(Args...)>, Args...>>(std::move(func));
@@ -112,7 +112,7 @@ public:
 
 
     // 成员函数无参
-    template<typename Class, typename Ret>
+    template<typename Class, typename Ret = void>
     void registerEvent(int64_t eventId, ThreadMode mode,
                        Class *instance, Ret(Class::*func)(), bool persistent = true) {
         auto handler = std::make_shared<RouteHandlerWithoutArgsMember<Class, Ret>>(instance, func);
@@ -121,7 +121,7 @@ public:
 
 
     // 成员函数有参
-    template<typename Class, typename Ret, typename... Args>
+    template<typename Class, typename Ret = void, typename... Args>
     void registerEvent(int64_t eventId, ThreadMode mode,
                        Class *instance, Ret(Class::*func)(Args...), bool persistent = true) {
         auto handler = std::make_shared<RouteHandlerWithArgsMember<Class, Ret, Args...>>(instance, func);
@@ -130,7 +130,7 @@ public:
 
 
     // 成员函数无参const
-    template<typename Class, typename Ret>
+    template<typename Class, typename Ret = void>
     void registerEvent(int64_t eventId, ThreadMode mode,
                        Class *instance, Ret(Class::*func)() const, bool persistent = true) {
         auto handler = std::make_shared<RouteHandlerWithoutArgsMemberConst<Class, Ret>>(instance, func);
@@ -139,7 +139,7 @@ public:
 
 
     // 成员函数有参const
-    template<typename Class, typename Ret, typename... Args>
+    template<typename Class, typename Ret = void, typename... Args>
     void registerEvent(int64_t eventId, ThreadMode mode,
                        Class *instance, Ret(Class::*func)(Args...) const, bool persistent = true) {
         auto handler = std::make_shared<RouteHandlerWithArgsMemberConst<Class, Ret, Args...>>(instance, func);
