@@ -49,7 +49,7 @@ public:
 
     void invoke(const std::vector<std::any>& args) override {
         if (args.size() != sizeof...(Args)) {
-            printf("[EventBus] [ERROR] args quantity mismatch, declared: %zu, invoked: %zu\n", sizeof...(Args), args.size());
+            printf("[FunctionRouter] [ERROR] args quantity mismatch, declared: %zu, invoked: %zu\n", sizeof...(Args), args.size());
             return;
         }
 
@@ -67,7 +67,7 @@ private:
 //                    >(args[I]...));
             func_(std::any_cast<Args...>(args[I]...));
         } catch (const std::bad_any_cast &e) {
-            printf("[EventBus] [ERROR] %s, check event params is match ?\n", e.what());
+            printf("[FunctionRouter] [ERROR] %s, check event params is match ?\n", e.what());
         }
     }
 
@@ -115,7 +115,7 @@ public:
 
     void invoke(const std::vector<std::any>& args) override{
         if (args.size() != sizeof...(Args)) {
-            printf("[EventBus] [ERROR] memberFunc args quantity mismatch, declared: %zu, invoked: %zu\n", sizeof...(Args), args.size());
+            printf("[FunctionRouter] [ERROR] memberFunc args quantity mismatch, declared: %zu, invoked: %zu\n", sizeof...(Args), args.size());
             return;
         }
 
@@ -179,7 +179,7 @@ public:
 
     void invoke(const std::vector<std::any>& args) override {
         if (args.size() != sizeof...(Args)) {
-            printf("[EventBus] [ERROR] memberFunc args quantity mismatch, declared: %zu, invoked: %zu\n", sizeof...(Args), args.size());
+            printf("[FunctionRouter] [ERROR] memberFunc args quantity mismatch, declared: %zu, invoked: %zu\n", sizeof...(Args), args.size());
             return;
         }
 

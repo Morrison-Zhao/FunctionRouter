@@ -19,7 +19,7 @@
 /**
  *  实现事件总线调度器，跨组件、解耦模块间交互
  *  支持四种调度方式，当前线程、主线程、线程池、子线程
- *  支持多种类型函数， 有参、无参 | 成员、非成员
+ *  支持多种类型可调用对象， 有参、无参 | 成员、非成员
  *
  *  使用方法：使用统一的方法注册，后续只需要根据id和参数直接跨组件调用
  */
@@ -38,13 +38,7 @@ public:
                 auto wrapper = std::make_shared<RouteWrapper>();
                 bool find = routeEvents_.find(eventId, wrapper);
                 if (find) {
-                    auto task = [wrapper] {
-                        if (wrapper->persistent) {
-                            wrapper->handler->invoke(wrapper->params.pop());
-                        } else {
-                            wrapper->handler->invoke({});
-                        }
-                    };
+                    auto task = [wrapper] { wrapper->handler->invoke(wrapper->params.pop());};
                     if (wrapper->mode == ThreadMode::LOOP) {
                         task();
 
@@ -62,13 +56,7 @@ public:
             auto wrapper = std::make_shared<RouteWrapper>();
             bool find = mainEvents_.find(eventId, wrapper);
             if (find) {
-                auto task = [wrapper] {
-                    if (wrapper->persistent) {
-                        wrapper->handler->invoke(wrapper->params.pop());
-                    } else {
-                        wrapper->handler->invoke({});
-                    }
-                };
+                auto task = [wrapper] { wrapper->handler->invoke(wrapper->params.pop());};
                 if (wrapper->mode == ThreadMode::MAIN) {
                     task();
 
@@ -212,8 +200,7 @@ public:
     }
 
 
-    // 调用-直接无参/有参（通过lambda捕获）
-    // 示例: postEvent([=]{ func(a, b); }, ThreadMode::MAIN);
+    // 调用-直接
     void postEvent(std::function<void()> func, ThreadMode mode = ThreadMode::ASYNC) {
         if (mode == ThreadMode::SYNC) {
             func();
@@ -224,10 +211,13 @@ public:
             wrapper->mode = mode;
             wrapper->handler = std::make_shared<RouteHandlerWithoutArgs<std::function<void()>>>(std::move(func));
             wrapper->persistent = false;
+            wrapper->params.push({});
+
 
             // 生成临时ID (负数，避免与用户ID冲突)
-            int64_t tempId = tempIdCounter_--; 
-            
+            int64_t tempId = tempIdCounter_--;
+
+
             if (mode == ThreadMode::LOOP) {
                 routeEvents_.insert(tempId, wrapper);
                 routeLooper_->push(tempId);
