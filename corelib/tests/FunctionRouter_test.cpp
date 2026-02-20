@@ -126,7 +126,9 @@ void TEST_FUNCTIONS() {
     // 普通函数，有参，左值引用
     int test_num = 0;
     router.registerEvent<void(int&)>(FREE_FUNC_WITH_ARGS_REF, mode, &free_with_args_ref);
-    router.postEvent(FREE_FUNC_WITH_ARGS_REF, test_num);
+    router.postEvent(FREE_FUNC_WITH_ARGS_REF, std::ref(test_num));
+    std::cout << "new test_num: " << test_num;
+
 
     // 静态函数
     router.registerEvent<void()>(FREE_FUNC_STATIC, mode, &static_without_args);
